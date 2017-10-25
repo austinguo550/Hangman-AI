@@ -1,6 +1,6 @@
 import json, requests, preprocess
 import collections, random, operator
-import os
+import os, re
 
 # first GET request at http://gallows.hulu.com/play?code=austinguo550@ucla.edu
 # second-last GET request at http://gallows.hulu.com/play?code=austinguo550@ucla.edu&token=TOKEN&guess=GUESS
@@ -49,6 +49,7 @@ class Game:
 		# add to guess history, remove from unguessed
 		# self.guessHist.add(GUESS)
 		self.unguessed.discard(GUESS)
+		self.setBestGuesses()
 		# feedback
 		print 'Token={}, Status={}, State={}, Remaining guesses={}'.format(self.TOKEN, self.STATUS, self.STATE, self.REMAINING_GUESSES)
 		# if this was last guess, restart
@@ -74,24 +75,26 @@ class Game:
 
 	def setBestGuesses(self):	# most probable letter frequencies based on length of word
 		# print 'WORD DICT={}'.format(wordDict)
-		anonWords = self.STATE.split()
-		anonWordsLen = set()
-		for word in anonWords:
-			anonWordsLen.add(len(word))
+		anonWords = set(self.STATE.replace('_', '.').split())	# setting up to use regex
 		charFrequencies = collections.defaultdict(int)
 		vowels = collections.defaultdict(list)
+		tempWordDict = []
+		regexes = []
+		for anonWord in anonWords:
+			regexes.append(re.compile('^{}$'.format(anonWord)))
 		for word in wordDict:
-			if len(word) in anonWordsLen:
-				for ch in word:
-					if not ch.isalpha():
-						continue
-					if ch in VOWELS and ch not in vowels:
-						vowels[ch].append(1)	# least freq to most freq, will be reversed after
-						continue
-					if ch in charFrequencies.keys():
-						charFrequencies[ch] = charFrequencies[ch] + 1
-					else:
-						charFrequencies[ch] = 1
+			for regex in regexes:
+				if regex.match(word):
+					for ch in word:
+						if not ch.isalpha():
+							continue
+						if ch in VOWELS and ch not in vowels:
+							vowels[ch].append(1)	# least freq to most freq, will be reversed after
+							continue
+						if ch in charFrequencies.keys():
+							charFrequencies[ch] = charFrequencies[ch] + 1
+						else:
+							charFrequencies[ch] = 1
 		for vowel in vowels.keys():
 			vowels[vowel] = len(vowels[vowel])
 		vowels = collections.deque(dict(sorted(vowels.items(), key=operator.itemgetter(1), reverse=True)).keys())
