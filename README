@@ -1,0 +1,59 @@
+HULU PROGRAMMING CHALLENGE
+Austin Guo
+10/25/2017
+
+AVG WIN RATE: 0.388888888889
+* win rate achieved by allowing program to run continuously for 20 minutes. Win rates for runtimes of less than 20 minutes can range from 0.2 - 0.6
+
+How to build and run
+==============
+Unzip the zip file and ensure that challenge.py and preprocess.py are in the same directory.
+Eiher pip install all the required dependencies (listed below) or run `python setup.py install` and pip install remaining dependencies.
+Run the command `python challenge.py` in the terminal.
+
+Included files
+==============
+challenge.py - The Python source file that GETs and POSTs to Hulu server, and runs AI program that plays hangman.
+preprocess.py - Python source file containing Preprocess class. Used to load datasets into memory for use by challenge.py
+setup.py - Setup file to allow for easier installation of dependencies
+words.txt - Dataset 1
+unprocessed_vocab.txt - Dataset 2 prior to preprocessing
+preprocessVocab.sh - Bash script which formats unprocessed_vocab.txt into accessible format for loading
+vocab.txt - Dataset 2
+entriesWithCollates.txt - Dataset 3
+
+2-letter-words.json - Dataset (unused)
+3-letter-words.json - Dataset (unused)
+4-letter-words.json - Dataset (unused)
+5-letter-words.json - Dataset (unused)
+6-letter-words.json - Dataset (unused)
+7-letter-words.json - Dataset (unused)
+8-letter-words.json - Dataset (unused)
+9-letter-words.json - Dataset (unused)
+10-letter-words.json - Dataset (unused)
+11-letter-words.json - Dataset (unused)
+12-letter-words.json - Dataset (unused)
+
+
+Requires:
+==============
+Python 2.7.12
+
+Dependencies:
+==============
+publicly available: json, requests, collections, random, operator, os, re
+included in zip: preprocess, datasets (listed in the included files)
+
+IMPLEMENTATION NOTES
+=====================
+Implementation utilizes a single layer MLFQ prioritizing certain characters commonly seen in words related to the anonymous words addressed by the STATE field of the server's JSON response. Essentially, this queue will match words from the dataset to the anonymous STATE words based on relationships (described in following passage) in order to guess characters.
+
+Relationships are determined by length of word, position of characters in word, and frequency of characters in word - these fields are contingent on results from the combined datasets, on which I run regex searches for matches.
+
+NOTE: I did not use a collaborative filtering approach since I would then need to set up code that I would deploy on AWS or Google Cloud, and in order for character guessing capacities to be maintained I would need to leave this endpoint running until Hulu staff tested my code. This is not only inconvenient but is also costly for me, since Google Cloud and AWS are not free services. As a result, I had to settle for a local approach to solve the problem. 
+
+The implementation presents lots of stdout output for debugging and clarity purposes.
+
+Implemented via Object Oriented Programming design patterns and variable naming convention best-practices.
+
+Due to requirement of not overloading the Hulu endpoint and time constraints, time complexity was not fully optimized and could be improved. However, for quick implementation my runtime depends on size of database, average length of words within the dataset, and number of words in STATE.

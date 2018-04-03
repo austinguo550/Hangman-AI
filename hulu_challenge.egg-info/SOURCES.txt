@@ -1,0 +1,7 @@
+README
+setup.py
+hulu_challenge.egg-info/PKG-INFO
+hulu_challenge.egg-info/SOURCES.txt
+hulu_challenge.egg-info/dependency_links.txt
+hulu_challenge.egg-info/requires.txt
+hulu_challenge.egg-info/top_level.txt

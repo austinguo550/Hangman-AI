@@ -9,6 +9,11 @@ wordDict = []
 cwd = os.path.dirname(os.path.realpath(__file__))
 VOWELS = ['a', 'e', 'i', 'o', 'u']
 
+#	geturl = 'http://gallows.hulu.com/play?code=austinguo550@ucla.edu'
+geturl = 'http://localhost:8080/FZDjp'
+posturl = 'http://localhost:8080/FZDjp'
+#	posturl = 'http://gallows.hulu.com/play?code=austinguo550@ucla.edu&token={}&guess={}'.format(self.TOKEN, GUESS)
+
 class Game:
 
 	''' json object contains '''
@@ -26,23 +31,23 @@ class Game:
 		self.startGame()
 
 	def startGame(self):
-		self.gamesPlayed = self.gamesPlayed + 1
 		# self.guessHist = set()
 		self.resetUnguessed()
-		response0 = requests.get('http://gallows.hulu.com/play?code=austinguo550@ucla.edu').json()
-		self.TOKEN = response0['token']
+		response0 = requests.get(geturl).json()
+		# self.TOKEN = response0['token']
 		self.STATUS = response0['status']
 		self.STATE = response0['state']
 		self.REMAINING_GUESSES = response0['remaining_guesses']
 		# AI work
 		self.setBestGuesses()
 		# Feedback
-		print 'Win rate={}'.format(self.winRate())
-		print 'GAME STARTED: Token={}, Status={}, State={}, Remaining guesses={}'.format(self.TOKEN, self.STATUS, self.STATE, self.REMAINING_GUESSES)
+		print 'Games won: {}, games played: {}. Win rate={}'.format(self.gamesWon, self.gamesPlayed, self.winRate())
+		#print 'GAME STARTED: Token={}, Status={}, State={}, Remaining guesses={}'.format(self.TOKEN, self.STATUS, self.STATE, self.REMAINING_GUESSES)
+		print 'GAME STARTED: Status={}, State={}, Remaining guesses={}'.format(self.STATUS, self.STATE, self.REMAINING_GUESSES)
 
 	def guess(self, GUESS):
-		response = requests.post('http://gallows.hulu.com/play?code=austinguo550@ucla.edu&token={}&guess={}'.format(self.TOKEN, GUESS)).json()
-		self.TOKEN = response['token']
+		response = requests.post(posturl, data={"guess": GUESS}).json()
+		#self.TOKEN = response['token']
 		self.STATUS = response['status']
 		self.STATE = response['state']
 		self.REMAINING_GUESSES = response['remaining_guesses']
@@ -51,18 +56,22 @@ class Game:
 		self.unguessed.discard(GUESS)
 		self.setBestGuesses()
 		# feedback
-		print 'Token={}, Status={}, State={}, Remaining guesses={}'.format(self.TOKEN, self.STATUS, self.STATE, self.REMAINING_GUESSES)
+		#print 'Token={}, Status={}, State={}, Remaining guesses={}'.format(self.TOKEN, self.STATUS, self.STATE, self.REMAINING_GUESSES)
+		print 'Status={}, State={}, Remaining guesses={}'.format(self.STATUS, self.STATE, self.REMAINING_GUESSES)
 		# if this was last guess, restart
 		if self.STATUS == 'DEAD':	#  lost
+			self.gamesPlayed = self.gamesPlayed + 1
 			self.startGame()
 		elif self.STATUS == 'FREE':	#  won
-			gamesWon = gamesWon + 1
+			print 'WON!!'
+			self.gamesWon = self.gamesWon + 1
+			self.gamesPlayed = self.gamesPlayed + 1
 			self.startGame()
 
 	def winRate(self):
 		if not self.gamesPlayed:
 			return 0
-		return self.gamesWon / self.gamesPlayed
+		return float(self.gamesWon) / float(self.gamesPlayed)
 
 	# def getGuesses(self):
 	# 	return self.guessHist
@@ -75,18 +84,23 @@ class Game:
 
 	def setBestGuesses(self):	# most probable letter frequencies based on length of word
 		# print 'WORD DICT={}'.format(wordDict)
-		anonWords = set(self.STATE.replace('_', '.').split())	# setting up to use regex
+		anonWords = set(self.STATE.lower().replace('_', '.').split())	# setting up to use regex
+
 		charFrequencies = collections.defaultdict(int)
 		vowels = collections.defaultdict(list)
-		tempWordDict = []
-		regexes = []
+		regexes = {}
+
 		for anonWord in anonWords:
-			regexes.append(re.compile('^{}$'.format(anonWord)))
-		for word in wordDict:
-			for regex in regexes:
+			regexes[re.compile('^{}$'.format(anonWord))] = anonWord.count('.') # gauge priority thru empty characters (higher is worse)
+		sortedRegexes = sorted(regexes.items(), key=operator.itemgetter(1))
+		regexes = collections.deque()
+		for item in sortedRegexes:
+			regexes.append(item[0])
+		for regex in regexes:
+			for word in wordDict:
 				if regex.match(word):
 					for ch in word:
-						if not ch.isalpha():
+						if not ch.isalpha() or ch not in self.unguessed:
 							continue
 						if ch in VOWELS and ch not in vowels:
 							vowels[ch].append(1)	# least freq to most freq, will be reversed after
@@ -97,9 +111,15 @@ class Game:
 							charFrequencies[ch] = 1
 		for vowel in vowels.keys():
 			vowels[vowel] = len(vowels[vowel])
-		vowels = collections.deque(dict(sorted(vowels.items(), key=operator.itemgetter(1), reverse=True)).keys())
-		tempDeque = collections.deque(dict(sorted(charFrequencies.items(), key=operator.itemgetter(1))).keys())
-		print vowels
+		vowels = collections.deque(dict(sorted(vowels.items(), key=operator.itemgetter(1))).keys())
+		tempDeque = collections.deque()
+		sortedFrequences = sorted(charFrequencies.items(), key=operator.itemgetter(1), reverse=True)
+		for item in sortedFrequences:
+			tempDeque.append(item[0])
+		print sortedFrequences
+
+		print tempDeque
+		# print vowels
 		for vowel in vowels:
 			tempDeque.appendleft(vowel)
 		self.bestGuesses = list(tempDeque)
@@ -109,27 +129,31 @@ class Game:
 		for guess in self.bestGuesses:
 			if guess in self.unguessed:
 				return guess
+		print "RANDOM!!!!!"
 		return random.sample(self.unguessed, 1)[0]	# grab random character, impossible for all characters to be guessed w/o answer so never throws error
 
 
 
 def main():
-	# preprocessor = preprocess.Preprocessor('{}/words.txt'.format(cwd))	# preprocess is called
-	preprocessor2 = preprocess.Preprocessor('{}/2-letter-words.json'.format(cwd))
-	preprocessor3 = preprocess.Preprocessor('{}/3-letter-words.json'.format(cwd))
-	preprocessor4 = preprocess.Preprocessor('{}/4-letter-words.json'.format(cwd))
-	preprocessor5 = preprocess.Preprocessor('{}/5-letter-words.json'.format(cwd))
-	preprocessor6 = preprocess.Preprocessor('{}/6-letter-words.json'.format(cwd))
-	preprocessor7 = preprocess.Preprocessor('{}/7-letter-words.json'.format(cwd))
-	preprocessor8 = preprocess.Preprocessor('{}/8-letter-words.json'.format(cwd))
-	preprocessor9 = preprocess.Preprocessor('{}/9-letter-words.json'.format(cwd))
-	preprocessor10 = preprocess.Preprocessor('{}/10-letter-words.json'.format(cwd))
-	preprocessor11 = preprocess.Preprocessor('{}/11-letter-words.json'.format(cwd))
-	preprocessor12 = preprocess.Preprocessor('{}/12-letter-words.json'.format(cwd))
+	preprocessor = preprocess.Preprocessor('{}/words.txt'.format(cwd))	# preprocess is called
+	''' poor data sets: '''
+	# preprocessor2 = preprocess.Preprocessor('{}/2-letter-words.json'.format(cwd))
+	# preprocessor3 = preprocess.Preprocessor('{}/3-letter-words.json'.format(cwd))
+	# preprocessor4 = preprocess.Preprocessor('{}/4-letter-words.json'.format(cwd))
+	# preprocessor5 = preprocess.Preprocessor('{}/5-letter-words.json'.format(cwd))
+	# preprocessor6 = preprocess.Preprocessor('{}/6-letter-words.json'.format(cwd))
+	# preprocessor7 = preprocess.Preprocessor('{}/7-letter-words.json'.format(cwd))
+	# preprocessor8 = preprocess.Preprocessor('{}/8-letter-words.json'.format(cwd))
+	# preprocessor9 = preprocess.Preprocessor('{}/9-letter-words.json'.format(cwd))
+	# preprocessor10 = preprocess.Preprocessor('{}/10-letter-words.json'.format(cwd))
+	# preprocessor11 = preprocess.Preprocessor('{}/11-letter-words.json'.format(cwd))
+	# preprocessor12 = preprocess.Preprocessor('{}/12-letter-words.json'.format(cwd))
 	vocabpreprocessor = preprocess.Preprocessor('{}/vocab.txt'.format(cwd))
+	moreWords = preprocess.Preprocessor('{}/entriesWithCollocates.txt'.format(cwd))
 	global wordDict
 	'''preprocessor.processedWords +'''
-	wordDict = preprocessor2.processedWords + preprocessor3.processedWords + preprocessor4.processedWords + preprocessor5.processedWords + preprocessor6.processedWords + preprocessor7.processedWords + preprocessor8.processedWords + preprocessor9.processedWords + preprocessor10.processedWords + preprocessor11.processedWords + preprocessor12.processedWords + vocabpreprocessor.processedWords
+	# wordDict = preprocessor.processedWords + preprocessor5.processedWords + preprocessor6.processedWords + preprocessor7.processedWords + preprocessor8.processedWords + preprocessor9.processedWords + preprocessor10.processedWords + preprocessor11.processedWords + preprocessor12.processedWords + vocabpreprocessor.processedWords + moreWords.processedWords
+	wordDict = preprocessor.processedWords + vocabpreprocessor.processedWords + moreWords.processedWords
 	# set the word dict so the game can find the best guesses
 	# print 'PROCESSED WORDS={}'.format(preprocessor.processedWords)
 	game = Game()	# starts the game
